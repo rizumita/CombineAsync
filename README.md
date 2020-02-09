@@ -1,3 +1,2 @@
 # CombineAsync
-
-A description of this package.
+Async/Await for Combine
