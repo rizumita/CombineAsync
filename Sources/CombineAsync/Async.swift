@@ -58,7 +58,6 @@ public class Async<T>: Publisher {
             do {
                 try body(yield)
                 endCancellable = yield.$allPublishersEnded
-                    .print("ended")
                     .filter { $0 }
                     .sink(receiveValue: { [unowned yield] _ in yield.subject.send(completion: .finished) })
             } catch {
