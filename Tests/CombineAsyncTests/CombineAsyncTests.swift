@@ -8,7 +8,7 @@ final class CombineAsyncTests: XCTestCase {
         
         let p1 = Just<Int>(1)
 
-        _ = async { (yield: Yield<Int>) in
+        let c = async { (yield: Yield<Int>) in
             let num = try await(p1)
             yield(num)
             yield(2)
@@ -47,6 +47,22 @@ final class CombineAsyncTests: XCTestCase {
         }) { num in
             XCTAssertEqual(count, num)
             count += 1
+            exp.fulfill()
+        }
+        
+        waitForExpectations(timeout: 1.0)
+    }
+    
+    func testAsyncAwaitPublisher() {
+        let exp = expectation(description: #function)
+        exp.expectedFulfillmentCount = 5
+
+        let p = Timer.publish(every: 0.1, on: RunLoop.main, in: .default).autoconnect().prefix(5)
+
+        let c = async { (yield: Yield<Date>) in
+            yield(p)
+        }.sink(receiveCompletion: { _ in }) { date in
+            print(date)
             exp.fulfill()
         }
         

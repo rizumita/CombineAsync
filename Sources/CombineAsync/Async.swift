@@ -23,13 +23,53 @@ public class Async<T>: Publisher {
     }
     
     public func receive<S>(subscriber: S) where S : Subscriber, Failure == S.Failure, Output == S.Input {
-        yield.subject.subscribe(subscriber)
-        subscriber.receive(subscription: Subscriptions.empty)
-        do {
-            try body(yield)
+        subscriber.receive(subscription: AsyncSubscription<T>(subscriber: AnySubscriber(subscriber), yield: yield, body: body))
+    }
+    
+    private class AsyncSubscription<T>: Subscription {
+        internal init(subscriber: AnySubscriber<T, Error>, yield: Yield<T>, body: @escaping (Yield<T>) throws -> ()) {
+            self.subscriber = subscriber
+            self.yield = yield
+            self.body = body
+            
+            yield.subject.sink(receiveCompletion: {
+                switch $0 {
+                case .finished:
+                    subscriber.receive(completion: .finished)
+                case .failure(let error):
+                    subscriber.receive(completion: .failure(error))
+                }
+            }, receiveValue: {
+                _ = subscriber.receive($0)
+            }).store(in: &cancellables)
+        }
+        
+        deinit {
+            self.yield.subject.send(completion: .finished)
+        }
+        
+        private var cancellables = Set<AnyCancellable>()
+        private let subscriber: AnySubscriber<T, Error>
+        private let yield: Yield<T>
+        private let body: (Yield<T>) throws -> ()
+        private var endCancellable: AnyCancellable?
+        
+        func request(_ demand: Subscribers.Demand) {
+            do {
+                try body(yield)
+                endCancellable = yield.$allPublishersEnded
+                    .print("ended")
+                    .filter { $0 }
+                    .sink(receiveValue: { [unowned yield] _ in yield.subject.send(completion: .finished) })
+            } catch {
+                yield.subject.send(completion: .failure(error))
+            }
+        }
+        
+        func cancel() {
+            endCancellable?.cancel()
             yield.subject.send(completion: .finished)
-        } catch {
-            yield.subject.send(completion: .failure(error))
+            yield.cancellables.forEach { $0.cancel() }
         }
     }
 }
