@@ -19,15 +19,16 @@ public extension Publisher {
         
         let semaphore = DispatchSemaphore(value: 0)
         
-        _ = sink(receiveCompletion: { completion in
-            switch completion {
-            case .finished:
-                ()
-            case .failure(let e):
-                error = e
-            }
-            semaphore.signal()
-        }, receiveValue: { output = $0 })
+        _ = first()
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    ()
+                case .failure(let e):
+                    error = e
+                }
+                semaphore.signal()
+            }, receiveValue: { output = $0 })
         
         _ = semaphore.wait(timeout: .distantFuture)
         
