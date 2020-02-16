@@ -19,7 +19,7 @@ public extension Publisher {
         
         let semaphore = DispatchSemaphore(value: 0)
         
-        _ = first()
+        let c = first()
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
@@ -28,7 +28,9 @@ public extension Publisher {
                     error = e
                 }
                 semaphore.signal()
-            }, receiveValue: { output = $0 })
+            }, receiveValue: {
+                output = $0
+            })
         
         _ = semaphore.wait(timeout: .distantFuture)
         

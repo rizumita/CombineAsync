@@ -68,6 +68,23 @@ final class CombineAsyncTests: XCTestCase {
         
         waitForExpectations(timeout: 1.0)
     }
+    
+    func testAsyncAwaitFuture() {
+        let future: Deferred<Future<Int, Never>> = Deferred {
+            Future { promise in
+                DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
+                    promise(.success(1))
+                }
+            }
+        }
+        
+        var num = 0
+        let c = async { (yield: Yield<()>) in
+            num = try await(future)
+        }.sink(receiveCompletion: { _ in
+            XCTAssertEqual(num, 1)
+        }, receiveValue: {})
+    }
 
     static var allTests = [
         ("testExample", testAsyncAwait),
