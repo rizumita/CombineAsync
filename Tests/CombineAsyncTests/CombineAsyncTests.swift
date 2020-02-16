@@ -85,6 +85,15 @@ final class CombineAsyncTests: XCTestCase {
             XCTAssertEqual(num, 1)
         }, receiveValue: {})
     }
+    
+    func testAsyncAwaitVoid() {
+        var flag = false
+        let c = async { (yield: Yield<()>) in
+            flag = true
+        }.sink(receiveCompletion: { _ in
+            XCTAssertTrue(flag)
+        }, receiveValue: {})
+    }
 
     static var allTests = [
         ("testExample", testAsyncAwait),

@@ -57,6 +57,11 @@ public class Async<T>: Publisher {
         func request(_ demand: Subscribers.Demand) {
             do {
                 try body(yield)
+                
+                if let yield = yield as? Yield<()> {
+                    yield(())
+                }
+                
                 endCancellable = yield.$allPublishersEnded
                     .filter { $0 }
                     .sink(receiveValue: { [unowned yield] _ in yield.subject.send(completion: .finished) })
