@@ -17,7 +17,7 @@ public class Yield<T> {
     
     @Published var allPublishersEnded: Bool = false
     
-    private var publisherCount = 0 {
+    var publisherCount = 0 {
         didSet {
             allPublishersEnded = false
         }

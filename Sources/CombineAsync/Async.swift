@@ -53,20 +53,29 @@ public class Async<T>: Publisher {
         private let yield: Yield<T>
         private let body: (Yield<T>) throws -> ()
         private var endCancellable: AnyCancellable?
+        private let queue = DispatchQueue(label: UUID().uuidString)
         
         func request(_ demand: Subscribers.Demand) {
-            do {
-                try body(yield)
-                
-                if let yield = yield as? Yield<()> {
-                    yield(())
+            queue.async {
+                do {
+                    try self.body(self.yield)
+                    
+                    if let yield = self.yield as? Yield<()> {
+                        yield(())
+                        if yield.publisherCount == 0 {
+                            yield.allPublishersEnded = true
+                        }
+                    }
+                    
+                    let y = self.yield
+                    self.endCancellable = self.yield.$allPublishersEnded
+                        .filter { $0 }
+                        .sink(receiveValue: { [unowned y] _ in
+                            y.subject.send(completion: .finished)
+                        })
+                } catch {
+                    self.yield.subject.send(completion: .failure(error))
                 }
-                
-                endCancellable = yield.$allPublishersEnded
-                    .filter { $0 }
-                    .sink(receiveValue: { [unowned yield] _ in yield.subject.send(completion: .finished) })
-            } catch {
-                yield.subject.send(completion: .failure(error))
             }
         }
         

@@ -29,7 +29,7 @@ final class CombineAsyncTests: XCTestCase {
         
         let p1 = Just<Int>(1)
 
-        _ = async { (yield: Yield<Int>) in
+        let c = async { (yield: Yield<Int>) in
             let num = try await(p1)
             yield(num)
             yield(2)
@@ -70,6 +70,8 @@ final class CombineAsyncTests: XCTestCase {
     }
     
     func testAsyncAwaitFuture() {
+        let exp = expectation(description: #function)
+
         let future: Deferred<Future<Int, Never>> = Deferred {
             Future { promise in
                 DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
@@ -83,7 +85,10 @@ final class CombineAsyncTests: XCTestCase {
             num = try await(future)
         }.sink(receiveCompletion: { _ in
             XCTAssertEqual(num, 1)
+            exp.fulfill()
         }, receiveValue: {})
+        
+        waitForExpectations(timeout: 2.0)
     }
     
     func testAsyncAwaitVoid() {
@@ -93,6 +98,30 @@ final class CombineAsyncTests: XCTestCase {
         }.sink(receiveCompletion: { _ in
             XCTAssertTrue(flag)
         }, receiveValue: {})
+    }
+    
+    func testAsyncAwaitMainThread() {
+        let exp = expectation(description: #function)
+        
+        let future: Deferred<Future<Int, Never>> = Deferred {
+            Future { promise in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    promise(.success(1))
+                }
+            }
+        }
+
+        var num = 0
+        let c = async { (yield: Yield<()>) in
+            num = try await(future.subscribe(on: DispatchQueue.main))
+        }.subscribe(on: DispatchQueue.main).sink(receiveCompletion: { _ in
+            XCTAssertEqual(num, 1)
+            exp.fulfill()
+        }, receiveValue: {})
+        
+        waitForExpectations(timeout: 2.0)
+        
+        print("end")
     }
 
     static var allTests = [

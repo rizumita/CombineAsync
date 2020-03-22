@@ -19,7 +19,7 @@ public extension Publisher {
         
         let semaphore = DispatchSemaphore(value: 0)
         
-        let c = first()
+        let c = subscribe(on: DispatchQueue.global()).first()
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
